@@ -34,7 +34,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "axum"
 version = "0.6.0-rc.2"
-source = "git+https://github.com/KernelFreeze/axum.git#3ef8e24f74f95cdd5a3092ef571bb92beb7cc7a8"
+source = "git+https://github.com/KernelFreeze/axum.git#5f3be951fdf25d08b37720a1450c41ef2cd446ae"
 dependencies = [
  "async-trait",
  "axum-core",
@@ -61,7 +61,7 @@ dependencies = [
 [[package]]
 name = "axum-core"
 version = "0.3.0-rc.2"
-source = "git+https://github.com/KernelFreeze/axum.git#3ef8e24f74f95cdd5a3092ef571bb92beb7cc7a8"
+source = "git+https://github.com/KernelFreeze/axum.git#5f3be951fdf25d08b37720a1450c41ef2cd446ae"
 dependencies = [
  "async-trait",
  "bytes",
@@ -917,7 +917,6 @@ dependencies = [
  "futures-util",
  "pin-project",
  "pin-project-lite",
- "tokio",
  "tower-layer",
  "tower-service",
  "tracing",

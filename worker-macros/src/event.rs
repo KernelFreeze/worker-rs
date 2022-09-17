@@ -96,39 +96,28 @@ pub fn expand_macro(attr: TokenStream, item: TokenStream) -> TokenStream {
             let convert_request_fn = quote! {
                 async fn convert_request(
                     edge_request: worker_sys::Request,
-                ) -> Result<http::Request<axum::body::BoxBody>, worker::Error> {
-                    use std::str::FromStr;
-
-                    use axum::body::{boxed, Bytes};
+                ) -> Result<http::Request<axum::body::Body>, worker::Error> {
+                    use axum::body::Bytes;
                     use http::{header::HeaderName, HeaderValue, Method, Request};
-                    use http_body::Full;
                     use js_sys::Iterator;
+                    use std::str::FromStr;
                     use wasm_bindgen_futures::JsFuture;
-
                     let method = Method::from_str(&edge_request.method())?;
                     let uri = edge_request.url();
-
-                    // Read body
                     let body: Bytes = JsFuture::from(edge_request.array_buffer()?)
                         .await
                         .map(|val| js_sys::Uint8Array::new(&val).to_vec())?
                         .into();
-
-                    // Build request
-                    let mut request = Request::builder()
-                        .method(method)
-                        .uri(uri)
-                        .body(boxed(Full::new(body)))?;
-
+                    let body = axum::body::Body::from(body);
+                    let mut request = Request::builder().method(method).uri(uri).body(body)?;
                     if let Ok(entries) = edge_request.headers().entries() {
                         let headers = request.headers_mut();
-                        for entry in entries {
-                            if let Ok(entry) = entry {
-                                let iterator = Iterator::from(entry);
-                                let key = iterator.next()?.as_string();
-                                let value = iterator.next()?.as_string();
-
-                                if let Some(key) = key && let Some(value) = value {
+                        for entry in entries.into_iter().flatten() {
+                            let iterator = Iterator::from(entry);
+                            let key = iterator.next()?.as_string();
+                            let value = iterator.next()?.as_string();
+                            if let Some(key) = key {
+                                if let Some(value) = value {
                                     headers.insert(HeaderName::try_from(key)?, HeaderValue::try_from(value)?);
                                 }
                             }

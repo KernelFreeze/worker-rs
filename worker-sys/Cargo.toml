@@ -1,0 +1,28 @@
+[package]
+name = "worker-sys"
+description = "Low-level extern definitions / FFI bindings to the Cloudflare Workers JS Runtime."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+cfg-if = "1.0.0"
+js-sys = "0.3.57"
+wasm-bindgen = "0.2.80"
+
+[dependencies.web-sys]
+version = "0.3.57"
+features = [
+    "ReadableStream",
+    "RequestRedirect",
+    "RequestInit",
+    "FormData",
+    "Blob",
+    "BinaryType",
+    "ErrorEvent",
+    "MessageEvent",
+    "CloseEvent",
+    "ProgressEvent",
+]

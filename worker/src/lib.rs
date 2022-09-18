@@ -14,18 +14,19 @@ pub use wasm_bindgen;
 #[doc(hidden)]
 pub use wasm_bindgen_futures;
 
+pub use conversion::{convert_request, convert_response};
+
 pub use crate::context::Context;
 pub use crate::delay::Delay;
 pub use crate::env::{Env, Secret, Var};
 pub use crate::error::Error;
 pub use crate::schedule::*;
-pub use crate::streams::ByteStream;
 
 mod context;
+mod conversion;
 mod delay;
 mod env;
 mod error;
 mod schedule;
-mod streams;
 
 pub type Result<T> = std::result::Result<T, error::Error>;

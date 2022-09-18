@@ -53,80 +53,6 @@ pub fn expand_macro(attr: TokenStream, item: TokenStream) -> TokenStream {
                 quote! { panic!("{}", e) }
             };
 
-            let convert_response_fn = quote! {
-                fn convert_response(
-                    response: impl ::axum::response::IntoResponse,
-                ) -> Result<::worker_sys::Response, ::worker::Error> {
-                    use futures_util::TryStreamExt;
-                    use axum::body::HttpBody;
-                    use wasm_bindgen::JsCast;
-
-                    let mut response = response.into_response();
-
-                    let headers = worker_sys::Headers::new()?;
-                    for (key, value) in response.headers() {
-                        headers.append(key.as_str(), value.to_str()?)?;
-                    }
-
-                    let mut init = worker_sys::ResponseInit::new();
-                    init.status(response.status().as_u16());
-                    init.headers(&headers);
-
-                    let stream = futures_util::stream::poll_fn(move |ctx| std::pin::Pin::new(response.body_mut()).poll_data(ctx));
-
-                    let js_stream = stream
-                        .map_ok(|chunk| {
-                            let array = js_sys::Uint8Array::new_with_length(chunk.len() as u32);
-                            array.copy_from(&chunk);
-                            wasm_bindgen::JsValue::from(array)
-                        })
-                        .map_err(|e| wasm_bindgen::JsValue::from(e.to_string()));
-
-                    let stream = wasm_streams::ReadableStream::from_stream(js_stream);
-                    let stream = stream
-                        .into_raw()
-                        .dyn_into()
-                        .map_err(|_| worker::Error::ReadBody)?;
-
-                    let response = worker_sys::Response::new_with_opt_stream_and_init(Some(stream), &init)?;
-                    Ok(response)
-                }
-            };
-
-            let convert_request_fn = quote! {
-                async fn convert_request(
-                    edge_request: worker_sys::Request,
-                ) -> Result<http::Request<axum::body::Body>, worker::Error> {
-                    use axum::body::Bytes;
-                    use http::{header::HeaderName, HeaderValue, Method, Request};
-                    use js_sys::Iterator;
-                    use std::str::FromStr;
-                    use wasm_bindgen_futures::JsFuture;
-                    let method = Method::from_str(&edge_request.method())?;
-                    let uri = edge_request.url();
-                    let body: Bytes = JsFuture::from(edge_request.array_buffer()?)
-                        .await
-                        .map(|val| js_sys::Uint8Array::new(&val).to_vec())?
-                        .into();
-                    let body = axum::body::Body::from(body);
-                    let mut request = Request::builder().method(method).uri(uri).body(body)?;
-                    if let Ok(entries) = edge_request.headers().entries() {
-                        let headers = request.headers_mut();
-                        for entry in entries.into_iter().flatten() {
-                            let iterator = Iterator::from(entry);
-                            let key = iterator.next()?.as_string();
-                            let value = iterator.next()?.as_string();
-                            if let Some(key) = key {
-                                if let Some(value) = value {
-                                    headers.insert(HeaderName::try_from(key)?, HeaderValue::try_from(value)?);
-                                }
-                            }
-                        }
-                    }
-                    Ok(request)
-                }
-            };
-
             let service_fn = quote! {
                 async fn service(
                     req: ::worker::JsRequest,
@@ -136,12 +62,12 @@ pub fn expand_macro(attr: TokenStream, item: TokenStream) -> TokenStream {
                     use ::worker::Service;
 
                     let ctx = ::worker::Context::new(ctx);
-                    let req = convert_request(req).await?;
+                    let req = ::worker::convert_request(req).await?;
 
                     // get the impl IntoResponse by calling the original fn
                     let mut service = #input_fn_ident(env, ctx).await;
-                    std::future::poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
-                    convert_response(service.call(req).await.unwrap())
+                    ::std::future::poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
+                    ::worker::convert_response(service.call(req).await.unwrap())
                 }
             };
 
@@ -174,8 +100,6 @@ pub fn expand_macro(attr: TokenStream, item: TokenStream) -> TokenStream {
                     use ::worker::{wasm_bindgen, wasm_bindgen_futures};
                     use super::#input_fn_ident;
                     #wasm_bindgen_code
-                    #convert_request_fn
-                    #convert_response_fn
                     #service_fn
                 }
             };
